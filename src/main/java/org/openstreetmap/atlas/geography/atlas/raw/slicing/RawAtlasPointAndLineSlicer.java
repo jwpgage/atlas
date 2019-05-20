@@ -278,23 +278,20 @@ public class RawAtlasPointAndLineSlicer extends RawAtlasSlicer
         {
             for (final Geometry slice : mergedSlices.get(countryCode))
             {
+                final long lineSliceIdentifier = lineIdentifierFactory.nextIdentifier();
+                final List<Long> newLineShapePoints = processSlice(slice, pointIdentifierFactory,
+                        line);
                 // Check if the slice is within the working bound and mark all points for this
                 // slice for removal if so
                 if (isOutsideWorkingBound(slice))
                 {
-                    // increment the identifier factory, but don't bother slicing the line
-                    // this guarantees deterministic id assignment regardless of which countries
-                    // are being sliced
-                    lineIdentifierFactory.nextIdentifier();
                     removeShapePointsFromFilteredSliced(slice);
                 }
                 else
                 {
-                    final long lineSliceIdentifier = lineIdentifierFactory.nextIdentifier();
-                    final List<Long> newLineShapePoints = processSlice(slice,
-                            pointIdentifierFactory, line);
                     // Extract relevant tag values for this slice
                     final Map<String, String> lineTags = createLineTags(slice, line.getTags());
+
                     createdLines.add(
                             new TemporaryLine(lineSliceIdentifier, newLineShapePoints, lineTags));
                 }
@@ -364,7 +361,10 @@ public class RawAtlasPointAndLineSlicer extends RawAtlasSlicer
                         getCoordinateToPointMapping().storeMapping(coordinate,
                                 newPoint.getIdentifier());
                         newLineShapePoints.add(newPoint.getIdentifier());
-                        this.slicedPointAndLineChanges.createPoint(newPoint);
+                        if (!isOutsideWorkingBound(slice))
+                        {
+                            this.slicedPointAndLineChanges.createPoint(newPoint);
+                        }
                     }
                     else
                     {
