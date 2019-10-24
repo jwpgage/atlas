@@ -158,7 +158,7 @@ sub atlas_show_contextual_help_menu_and_exit {
     # command array contain only one element.
     open JAVA, "-|", @java_command or die $!;
     my $output = '';
-    while(<JAVA>) {
+    while (<JAVA>) {
         # Not the most efficient way to do things.
         # Perhaps some kind of slurp is needed. File::Slurp could work but does
         # have an outstanding Unicode bug. Need to investigate more.
@@ -248,30 +248,34 @@ my $help_argument;
 my $show_list;
 my $class_of;
 my $save_preset;
+my $save_global_preset;
 my $use_preset;
 my $remove_preset;
 my $all_presets;
 my $show_preset;
 my $edit_preset;
-my $cfg_preset;
 my $allow_run_as_root;
 Getopt::Long::Configure(qw(no_ignore_case_always));
 GetOptions(
-    "no-pager" => \$skip_paging,
-    "memory|m=s" => \$memory,
-    "help|h:s" => \$help_argument,
-    "version|V" => sub { print "$program_version\n"; exit 0; },
-    "quiet|q" => \$quiet,
-    "list|l" => \$show_list,
-    "class-of=s" => \$class_of,
-    "preset|p=s" => \$use_preset,
-    "save-preset=s" => \$save_preset,
-    "debug" => \$debug_flag,
-    "allow-run-as-root" => \$allow_run_as_root,
+    "no-pager"          => \$skip_paging,
+    "memory|m=s"        => \$memory,
+    "help|h:s"          => \$help_argument,
+    "version|V"         => sub {
+        print "$program_version\n";
+        exit 0;
+    },
+    "quiet|q"               => \$quiet,
+    "list|l"                => \$show_list,
+    "class-of=s"            => \$class_of,
+    "preset|p=s"            => \$use_preset,
+    "save-preset=s"         => \$save_preset,
+    "save-global-preset=s"  => \$save_global_preset,
+    "debug"                 => \$debug_flag,
+    "allow-run-as-root"     => \$allow_run_as_root,
     # This callback occurs the first time we see a non-option argument.
     # In our case, this will be the subcommand.
-    "<>" => sub {
-        my($arg) = @_;
+    "<>"                => sub {
+        my ($arg) = @_;
         if ($arg =~ m{^-}) {
             unless ($arg eq '-') {
                 die "FATAL error: unhandled global option $arg";
@@ -308,7 +312,7 @@ if (defined $help_argument) {
         my @command = ();
         push @command, @man_command;
         push @command, "$program_name";
-        system { $command[0] } @command;
+        system {$command[0]} @command;
         my $exitcode = $? >> 8;
         if ($exitcode != 0) {
             exit 1;
@@ -355,16 +359,6 @@ unless (-f $index_path) {
 
 if ($debug_flag) {
     print "---- ATLAS DEBUG MODE ----\n";
-}
-
-# Handle the case where the user supplied the cfg.preset arg. When this happens,
-# then any arg after it should be passed forward to the cfg.preset handler
-if (defined $cfg_preset) {
-    my $success = atlas_cfgpreset($debug_flag, \@ARGV);
-    unless ($success) {
-        exit 1;
-    }
-    exit 0;
 }
 
 # Handle case where user entered --help=TOPIC flag
@@ -416,18 +410,41 @@ my $current_namespace = ast_preset_subsystem::get_namespace($ast_path);
 if (defined $use_preset) {
     @new_argv = ast_preset_subsystem::apply_preset_or_exit($ast_path, $program_name, $quiet, $use_preset, $subcommand, $current_namespace, \@ARGV);
     if ($debug_flag) {
-        print "Applying preset ${use_preset} for ${subcommand} in namespace ${current_namespace}\n";
-        print "Try \'${bold_stdout}${ast_utilities::CONFIG_PROGRAM} preset list ${subcommand} ${use_preset}${reset_stdout}\' to see the preset.\n\n";
+        print "Applying preset(s) ${use_preset} for ${subcommand} in namespace ${current_namespace}\n";
     }
 }
 
 if (defined $save_preset) {
+    unless (ast_preset_subsystem::preset_regex_ok($save_preset)) {
+            ast_utilities::error_output($program_name, "invalid preset name ${bold_stderr}${save_preset}${reset_stderr}");
+            print STDERR "Name must match regex: " . ast_preset_subsystem::preset_regex() . "\n";
+            exit 1;
+    }
     if ($debug_flag) {
         print "Would save preset ${save_preset} for ${subcommand} to namespace ${current_namespace}\n";
         print "Preset ARGV: \"@new_argv\"\n\n";
     }
     else {
         my $success = ast_preset_subsystem::save_preset($ast_path, $program_name, $quiet, $save_preset, $subcommand, $current_namespace, \@new_argv);
+        unless ($success) {
+            exit 1;
+        }
+        print "Launching command ${bold_stdout}${subcommand}${reset_stdout}...\n\n";
+    }
+}
+
+if (defined $save_global_preset) {
+    unless (ast_preset_subsystem::preset_regex_ok($save_global_preset)) {
+            ast_utilities::error_output($program_name, "invalid preset name ${bold_stderr}${save_global_preset}${reset_stderr}");
+            print STDERR "Name must match regex: " . ast_preset_subsystem::preset_regex() . "\n";
+            exit 1;
+    }
+    if ($debug_flag) {
+        print "Would save global preset ${save_global_preset} to namespace ${current_namespace}\n";
+        print "Preset ARGV: \"@new_argv\"\n\n";
+    }
+    else {
+        my $success = ast_preset_subsystem::save_preset($ast_path, $program_name, $quiet, $save_global_preset, $ast_preset_subsystem::GLOBAL_FOLDER, $current_namespace, \@new_argv);
         unless ($success) {
             exit 1;
         }
@@ -489,7 +506,7 @@ if ($debug_flag) {
 # Here we use system's indirect object syntax to correctly handle all possible
 # edge cases regarding the configuration of @java_command.
 # See bottom of page: http://perldoc.perl.org/functions/exec.html
-system { $java_command[0] } @java_command;
+system {$java_command[0]} @java_command;
 my $exitcode = $? >> 8;
 exit $exitcode;
 

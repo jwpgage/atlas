@@ -26,7 +26,7 @@ is_bash_at_least_version_4 ()
     fi
 }
 
-_complete ()
+_complete_atlas_shell_tools ()
 {
     local completion_mode="default";
     if [ "$1" = "atlas" ];
@@ -49,7 +49,7 @@ _complete ()
         compopt +o default
     fi
 
-    local reply=$(atlas-config "${completion_mode}" "${COMP_WORDS[@]}");
+    local reply=$(atlas-config "${completion_mode}" "${COMP_CWORD}" "${COMP_WORDS[@]}");
 
     if [ "$reply" = "__atlas-shell-tools_sentinel_complete_filenames__" ];
     then
@@ -74,5 +74,5 @@ _complete ()
     fi
 }
 
-complete -o filenames -o bashdefault -F _complete atlas
-complete -o filenames -o bashdefault -F _complete atlas-config
+complete -o filenames -o bashdefault -F _complete_atlas_shell_tools atlas
+complete -o filenames -o bashdefault -F _complete_atlas_shell_tools atlas-config
